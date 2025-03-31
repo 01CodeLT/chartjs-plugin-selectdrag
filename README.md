@@ -15,20 +15,27 @@ Enable it in the settings of a chart
 type: "bar",
 options: {
   plugins: {
-      selectdrag: {
-          enabled: true,
-          onSelectComplete: (event) => {
-              // Show selected
-              document.getElementById('results').innerHTML = event.range;
+        selectdrag: {
+            enabled: true,
+            output: 'value', // Can be 'value' or 'label'
+            highlight: false, // Highlight the selected data on the chart?
+            colors: {
+                selection: "#e8eff6", // Background color of selection box
+                selected: "#1f77b4", // Color of selected data
+                unselected: "#cccccc" // Color of unselected data
+            },
+            onSelectComplete: (event) => {
+                // Show selected
+                document.getElementById('results').innerHTML = event.range;
 
-              // Get selected range
-              console.log(event.range);
-              
-              // Get selection coordinates
-              console.log(event.boundingBox);
-          }
-      }
-  },
+                // Get selected range
+                console.log(event.range);
+                
+                // Get selection coordinates
+                console.log(event.boundingBox);
+            }
+        }
+    },
 },
 data: { 
     labels: [], 

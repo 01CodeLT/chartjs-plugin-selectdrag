@@ -1,6 +1,6 @@
 {
   "name": "@01coder/chartjs-plugin-selectdrag",
-  "version": "1.0.3",
+  "version": "1.0.4",
   "description": "Chartjs plugin which allows you to select a range of data by dragging over a chart",
   "main": "lib/index.js",
   "types": "lib/index.d.ts",
@@ -15,6 +15,7 @@
   "author": "Luke Tinnion",
   "license": "ISC",
   "devDependencies": {
+    "chart.js": "^4.4.8",
     "typescript": "^4.8.2"
   },
   "keywords": [
@@ -33,6 +34,5 @@
   "homepage": "https://github.com/01CodeLT/chartjs-plugin-selectdrag#readme",
   "directories": {
     "lib": "lib"
-  },
-  "dependencies": {}
+  }
 }

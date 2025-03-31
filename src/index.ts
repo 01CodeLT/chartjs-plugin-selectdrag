@@ -6,14 +6,21 @@ const getState = (chart) => {
 }
 const setState = (chart, updatedState) => {
     const originalState = getState(chart);
-    states.set(chart, Object.assign({}, originalState, updatedState));
+    states.set(
+        chart, 
+        updatedState == null ? null : Object.assign({}, originalState, updatedState)
+    );
     return updatedState;
 }
 
 // Store options
 const pluginOptions = {
+    output: 'label',
+    highlight: true,
     colors: {
-        selection: "#e8eff6", selectedElements: "#1f77b4", unselectedElements: "#cccccc"
+        selection: "#e8eff6",
+        selected: "#1f77b4", // Unused if backgroundColorDefault set on dataset
+        unselected: "#cccccc"
     }
 };
 
@@ -36,18 +43,31 @@ export default {
             const axisElements = chart.getElementsAtEventForMode(e, "index", { intersect: false });
             if(axisElements.length === 0) { return; }
 
-            // Get axis value
-            const axisIndex = chart.getElementsAtEventForMode(e, "index", { intersect: false })[0].index;
-            const axisValue = chart.data.labels[axisIndex];
-
-            // Set selection origin
-            setState(chart, {
+            // Create state
+            const state = {
                 selectionXY: {
                     drawing: true,
-                    start: { axisValue, axisIndex, x: e.offsetX, y: e.offsetY },
+                    start: { axisValue: null, axisIndex: null, x: e.offsetX, y: e.offsetY },
                     end: {}
                 }
-            });
+            };
+
+            // Get axis value
+            const output = chart?.config?.options?.plugins?.selectdrag?.output || pluginOptions.output;
+            ({
+                'label': () => {
+                    const axisIndex = chart.getElementsAtEventForMode(e, "index", { intersect: false })[0].index;
+                    state.selectionXY.start.axisIndex = axisIndex;
+                    state.selectionXY.start.axisValue = chart.data.labels[axisIndex];
+                },
+                'value': () => {
+                    // Get value by scale
+                    state.selectionXY.start.axisValue = chart.scales.x.getValueForPixel(e.offsetX);
+                },
+            })[output]();
+
+            // Set selection origin
+            setState(chart, state);
         });
 
         // Draw end
@@ -59,19 +79,39 @@ export default {
             }
 
             // Get axis value
-            const axisElements = chart.getElementsAtEventForMode(e, "index", { intersect: false });
-            const axisIndex = axisElements.length > 0 ? axisElements[0].index : chart.data.labels.length - 1;
-            const axisValue = chart.data.labels[axisIndex];
+            const output = chart?.config?.options?.plugins?.selectdrag?.output || pluginOptions.output;
+            ({
+                'label': () => {
+                    // Get value by label
+                    const axisElements = chart.getElementsAtEventForMode(e, "index", { intersect: false });
+                    const axisIndex = axisElements.length > 0 ? axisElements[0].index : chart.data.labels.length - 1;
+                    const axisValue = chart.data.labels[axisIndex];
 
-            // Check values & set end origin
-            if(state.selectionXY.start.axisIndex > axisIndex) {
-                // Switch values - user has selected opposite way
-                state.selectionXY.end = JSON.parse(JSON.stringify(state.selectionXY.start));
-                state.selectionXY.start =  { axisValue, axisIndex, x: e.offsetX, y: e.offsetY }
-            } else {
-                // Set end origin
-                state.selectionXY.end = { axisValue, axisIndex, x: e.offsetX, y: e.offsetY };
-            }
+                    // Check values & set end origin
+                    if(state.selectionXY.start.axisIndex > axisIndex) {
+                        // Switch values - user has selected opposite way
+                        state.selectionXY.end = JSON.parse(JSON.stringify(state.selectionXY.start));
+                        state.selectionXY.start =  { axisValue, axisIndex, x: e.offsetX, y: e.offsetY }
+                    } else {
+                        // Set end origin
+                        state.selectionXY.end = { axisValue, axisIndex, x: e.offsetX, y: e.offsetY };
+                    }
+                },
+                'value': () => {
+                    // Get value by scale
+                    const axisValue = chart.scales.x.getValueForPixel(e.offsetX);
+                   
+                    // Check values & set end origin
+                    if(state.selectionXY.start.axisValue > axisValue) {
+                        // Switch values - user has selected opposite way
+                        state.selectionXY.end = JSON.parse(JSON.stringify(state.selectionXY.start));
+                        state.selectionXY.start =  { axisValue, axisIndex: null, x: e.offsetX, y: e.offsetY }
+                    } else {
+                        // Set end origin
+                        state.selectionXY.end = { axisValue, axisIndex: null, x: e.offsetX, y: e.offsetY };
+                    }
+                },
+            })[output]();
 
             // End drawing
             state.selectionXY.drawing = false;
@@ -125,22 +165,47 @@ export default {
             return;
         }
 
+        // Check if enabled
+        const highlight = chart?.config?.options?.plugins?.selectdrag?.highlight;
+        if(highlight !== undefined && highlight == false) { return; }
+
         // Check drawing status
         const state = getState(chart);
 
+        // Color based on output
+        const output = chart?.config?.options?.plugins?.selectdrag?.output || pluginOptions.output;
+        const colors = chart?.config?.options?.plugins?.selectdrag?.colors || pluginOptions.colors;
+        const backgroundColorCallback = {
+            'label': (value, index, defaultColor) => {
+                // Show selected/unselected
+                if(index >= state.selectionXY.start?.axisIndex && index <= state.selectionXY.end?.axisIndex) {
+                    return defaultColor;
+                } else {
+                    return colors.unselected;
+                }
+            }, 
+            'value': (value, index, defaultColor) => {
+                // Show selected/unselected
+                const v = value.x || value;
+                if(v >= state.selectionXY.start?.axisValue && v <= state.selectionXY.end?.axisValue) {
+                    return defaultColor;
+                } else {
+                    return colors.unselected;
+                }
+            }
+        }[output];
+
         // Set highlighted
         chart.data.datasets = chart.data.datasets.map((dataset) => {
-            dataset.backgroundColor = chart.data.labels.map((value, index) => {
+            dataset.backgroundColor = (
+                output == 'value' ? dataset.data : chart.data.labels
+            ).map((value, index) => {
                 if(!state || !state?.selectionXY?.start?.x || !state?.selectionXY?.end?.x) {
                     // Show default
-                    return pluginOptions.colors.selectedElements;
+                    return dataset.backgroundColorDefault || colors.selected;
                 } else {
                     // Show selected/unselected
-                    if(index >= state.selectionXY.start?.axisIndex && index <= state.selectionXY.end?.axisIndex) {
-                        return pluginOptions.colors.selectedElements;
-                    } else {
-                        return pluginOptions.colors.unselectedElements;
-                    }
+                    return backgroundColorCallback(value, index, dataset.backgroundColorDefault || colors.selected);
                 }
             });
             return dataset;
@@ -195,21 +260,33 @@ export default {
             }
         };
 
+        // Get output type
+        const output = chart?.config?.options?.plugins?.selectdrag?.output || pluginOptions.output;
+        const getValue = {
+            'label': (v) => {
+                const axisIndex = chart.data.labels.findIndex((item) => item === v);
+                return { i: axisIndex, v: chart.data.labels[axisIndex] };
+            }, 
+            'value': (v) => {
+                return { i: null, v: v.x || v };
+            }
+        }[output];
+
         // Set start axis
-        const startAxisIndex = chart.data.labels.findIndex((item) => item === range[0]);
+        const startValue = getValue(range[0]);
         state.selectionXY.start = {
-            axisValue: range[0],
-            axisIndex: startAxisIndex,
-            x: chart.scales.x.getPixelForValue(chart.data.labels[startAxisIndex]),
+            axisValue: startValue.v,
+            axisIndex: startValue.i,
+            x: chart.scales.x.getPixelForValue(startValue.v),
             y: 0
         }
 
         // Set end axis
-        const endAxisIndex = chart.data.labels.findIndex((item) => item === range[1]);
+        const endValue = getValue(range[1]);
         state.selectionXY.end = {
-            axisValue: range[0],
-            axisIndex: endAxisIndex,
-            x: chart.scales.x.getPixelForValue(chart.data.labels[endAxisIndex]),
+            axisValue: endValue.v,
+            axisIndex: endValue.i,
+            x: chart.scales.x.getPixelForValue(endValue.v),
             y: chart.chartArea.height
         }
 
