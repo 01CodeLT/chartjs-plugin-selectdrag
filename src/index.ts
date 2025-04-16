@@ -26,6 +26,7 @@ export default {
             } else {
                 selection.handleSelectStart(chart, e);
             }
+
             states.set(chart, selection);
         });
 
@@ -45,6 +46,8 @@ export default {
             if(!selection.isDragging && !selection.isSelecting) {
                 selection.handleSelectHover(chart, e);
             }
+
+            states.set(chart, selection);
         });
 
         // Draw end
@@ -54,7 +57,7 @@ export default {
             const selection: Selection = states.get(chart);
             if(!selection) { return; }
 
-            const selectComplete = () => {
+            const selectComplete = (selection) => {
                 clearTimeout(mouseUpTimeout);
                 mouseUpTimeout = setTimeout(() => {
                     const pluginOptions = getOptions(chart);
@@ -83,14 +86,15 @@ export default {
 
             if(selection.isSelecting == true) {
                 selection.handleSelectEnd(chart, e);
-                selectComplete();
+                selectComplete(selection);
             }
 
             if(selection.isDragging == true) {
                 selection.handleDragEnd(chart, e);
-                selectComplete();
+                selectComplete(selection);
             }
 
+            states.set(chart, selection);
             chart.update();
         });
     },
@@ -112,7 +116,7 @@ export default {
     afterDraw: (chart, args, options) => {
         // Check drawing status
         const selection: Selection = states.get(chart);
-        if(!selection || (selection?.isSelecting === false && !selection.selection.end?.x)) {
+        if(!selection?.selection || (selection?.isSelecting === false && !selection.selection.end?.x)) {
             return;
         }
 

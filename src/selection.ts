@@ -8,7 +8,7 @@ export class Selection {
 
     isSelecting = false;
     selection: {
-        start: { x: number, y: number },
+        start: { x: number, y: number, pageX?: number; },
         end?: { x: number, y: number },
     };
 
@@ -20,11 +20,11 @@ export class Selection {
         this.values.setRange(chart, range);
         this.selection = {
             start: {
-                x: chart.scales.x.getPixelForValue(this.values._start.axisValue),
+                x: chart.scales.x.getPixelForValue(this.values._start.axisValue) || chart.chartArea.left,
                 y: 0
             },
             end: {
-                x: chart.scales.x.getPixelForValue(this.values._end.axisValue),
+                x: chart.scales.x.getPixelForValue(this.values._end.axisValue) || chart.chartArea.right,
                 y: chart.chartArea.height
             }
         }
@@ -105,7 +105,6 @@ export class Selection {
                 start: { x: e.offsetX, y: e.offsetY },
                 end: this.selection.end,
             };
-            this.drag.lastXY = { x: e.offsetX, y: e.offsetY };
         } else if(this.drag.type == 'expand-right') {
             //  Validate selection
             if(e.offsetX < this.selection.start.x || e.offsetX > chart.chartArea.right) {
@@ -117,40 +116,25 @@ export class Selection {
                 start: this.selection.start,
                 end: { x: e.offsetX, y: e.offsetY },
             };
-            this.drag.lastXY = { x: e.offsetX, y: e.offsetY };
         } else {
             // Get diff
             const xDiff = e.offsetX - this.drag.lastXY.x;
-            const yDiff = e.offsetY - this.drag.lastXY.y;
 
-            const yStartNew = this.selection.start.y + yDiff;
-            const yEndNew = this.selection.end.y + yDiff;
-
-            // Set new selection
-            this.selection = {
-                start: { 
-                    x: (this.selection.start.x + xDiff) < chart.chartArea.left ? chart.chartArea.left : this.selection.start.x + xDiff,
-                    y: yStartNew < 0 || yStartNew > chart.chartArea.height ? 1 : yStartNew
-                },
-                end: { 
-                    x: (this.selection.end.x + xDiff) > chart.chartArea.right ? chart.chartArea.right : this.selection.end.x + xDiff,
-                    y: yEndNew < 0 || yEndNew > chart.chartArea.height ? chart.chartArea.height : yEndNew
-                },
-            };
-
-            // Last xy not used
-            console.log(this.selection)
+            // Validate move
             if(
                 (this.selection.start.x + xDiff) < chart.chartArea.left || 
                 (this.selection.end.x + xDiff) > chart.chartArea.right
-            ) {
-                return;
-            }
+            ) { return; }
 
-            this.drag.lastXY = { x: e.offsetX, y: e.offsetY };
+            // Set new selection
+            this.selection = {
+                start: { x: this.selection.start.x + xDiff, y: this.selection.start.y },
+                end: { x: this.selection.end.x + xDiff, y: this.selection.end.y },
+            };
         }
 
         // Store and render
+        this.drag.lastXY = { x: e.offsetX, y: e.offsetY };
         chart.render();
     }
 
@@ -160,8 +144,20 @@ export class Selection {
         chart.canvas.style.cursor = 'crosshair';
 
         // Save values
-        this.values.start(chart, { offsetX: this.selection.start.x, offsetY: this.selection.start.y });
-        this.values.end(chart, { offsetX: this.selection.end.x, offsetY: this.selection.end.y });
+        this.values.start(chart, new MouseEvent('mousedown', {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+            clientX: this.selection.start.x,
+            clientY: this.selection.start.y
+        }));
+        this.values.end(chart, new MouseEvent('mouseup', {
+            view: window,
+            bubbles: true,
+            cancelable: true,
+            clientX: this.selection.end.x,
+            clientY: this.selection.end.y
+        }));
     }
 
     handleSelectStart(chart, e) {
@@ -173,11 +169,12 @@ export class Selection {
         this.isSelecting = true;
 
         // Store values
-        this.values.start(chart, e);
-        this.selection = { start: { x: e.offsetX, y: e.offsetY }, end: { x: 0, y:0 }}
+        this.selection = { start: { x: e.offsetX, y: e.offsetY, pageX: e.pageX }, end: { x: 0, y:0 }}
     }
 
     handleSelectHover(chart, e) {
+        if(!this.selection) { return; }
+
         // Check drag type
         if(e.offsetX < this.selection.start.x && e.offsetX > (this.selection.start.x - (RESIZE_TAB_SIZE * 1.2))) {
             // Expand start
@@ -203,13 +200,20 @@ export class Selection {
 
         // TO-DO: Calc click radius and clear selection
 
-        // Set end values
-        this.values.end(chart, e);
-        if(e.offsetX < this.selection.start.x) {
+        // Check whether select is in reverse
+        if(e.pageX < this.selection.start.pageX) {
             this.selection = { start: { x: e.offsetX, y: e.offsetY }, end: JSON.parse(JSON.stringify(this.selection.start)) }
-            this.values.swap();
         } else {
             this.selection.end = { x: e.offsetX, y: e.offsetY  }
         }
+
+        // Validate selection within chart area
+        const chartBounds = chart.canvas.getBoundingClientRect();
+        if(e.pageX < chartBounds.left) { this.selection.start.x = chart.chartArea.left; }
+        if(e.pageX > chartBounds.right) { this.selection.end.x = chart.chartArea.right; }
+
+        // Store values
+        this.values.start(chart, this.selection.start);
+        this.values.end(chart, this.selection.end);
     }
 }

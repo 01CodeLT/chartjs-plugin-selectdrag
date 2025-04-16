@@ -44,7 +44,7 @@ export function highlightChartData(chart, selection: Selection = null) {
         dataset.backgroundColor = (
             output == 'value' ? dataset.data : chart.data.labels
         ).map((value, index) => {
-            if(!selection || !selection?.selection.start?.x || !selection?.selection.end?.x) {
+            if(!selection?.selection || !selection?.selection.start?.x || !selection?.selection.end?.x) {
                 // Show default
                 return dataset.backgroundColorDefault || colors.selected;
             } else {

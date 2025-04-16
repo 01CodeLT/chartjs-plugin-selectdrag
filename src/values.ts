@@ -1,29 +1,34 @@
 import { getOptions } from "./utils";
 
+interface Point { x: number; y: number; }
+
 export class Values {
 
     _start = { axisIndex: null, axisValue: null };
     _end = { axisIndex: null, axisValue: null };
 
-    start(chart, e): { axisIndex: any, axisValue: any } {
+    start(chart, point: Point): { axisIndex: any, axisValue: any } {
         // Get plugin options
         const pluginOptions = getOptions(chart);
         const output = pluginOptions.output;
-        console.log(chart, e);
+        
         // Return output
         return ({
             'label': () => {
-                const axisIndex = chart.getElementsAtEventForMode(e, "index", { intersect: false })[0].index;
-                this._start = { axisIndex, axisValue: chart.data.labels[axisIndex] };
+                const value = chart.scales.x.getLabelForValue(chart.scales.x.getValueForPixel(point.x));
+                this._start = {
+                    axisIndex: chart.data.labels.indexOf(value),
+                    axisValue: value
+                };
             },
             'value': () => {
                 // Get value by scale
-                this._start = { axisIndex: null, axisValue: chart.scales.x.getValueForPixel(e.offsetX) };
+                this._start = { axisValue: chart.scales.x.getValueForPixel(point.x), axisIndex: null };
             },
         })[output]();
     }
 
-    end(chart, e): { axisIndex: any, axisValue: any } {
+    end(chart, point: Point): { axisIndex: any, axisValue: any } {
         // Get plugin options
         const pluginOptions = getOptions(chart);
         const output = pluginOptions.output;
@@ -32,22 +37,23 @@ export class Values {
         return ({
             'label': () => {
                 // Get value by label
-                const axisElements = chart.getElementsAtEventForMode(e, "index", { intersect: false });
-                const axisIndex = axisElements.length > 0 ? axisElements[0].index : chart.data.labels.length - 1;
-                this._end = { axisValue: chart.data.labels[axisIndex], axisIndex };
+                let value = chart.scales.x.getLabelForValue(chart.scales.x.getValueForPixel(point.x));
+                if(chart.data.labels.includes(value)) {
+                    this._end = { axisValue: value, axisIndex: chart.data.labels.indexOf(value) };
+                } else {
+                    // User must have selected over end
+                    this._end = { 
+                        axisValue: chart.data.labels[chart.data.labels.length - 1], 
+                        axisIndex: chart.data.labels.length - 1 
+                    };
+                }
             },
             'value': () => {
                 // Get value by scale
-                const axisValue = chart.scales.x.getValueForPixel(e.offsetX);
+                const axisValue = chart.scales.x.getValueForPixel(point.x);
                 this._end = { axisValue, axisIndex: null };
             }
         })[output]();
-    }
-
-    swap() {
-        const startValues = JSON.parse(JSON.stringify(this._start));
-        const endValues = JSON.parse(JSON.stringify(this._end));
-        this._end = startValues; this._start = endValues;
     }
 
     setRange(chart, range = []) {
