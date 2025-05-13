@@ -64,7 +64,7 @@ export class Values {
                 return { axisIndex, axisValue: chart.data.labels[axisIndex] };
             }, 
             'value': (v) => {
-                return { axisIndex: null, axisValue: v.x || v };
+                return { axisIndex: null, axisValue: (v !== undefined && v.x) ? v.x : v };
             }
         }[pluginOptions.output];
 
