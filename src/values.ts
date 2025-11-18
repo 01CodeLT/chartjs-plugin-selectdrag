@@ -73,7 +73,7 @@ export class Values {
     }
 
     getRange() {
-        if(this._start.axisValue && this._end.axisValue) {
+        if(this._start.axisValue !== null && this._end.axisValue !== null) {
             return [this._start.axisValue, this._end.axisValue]
         } else { 
             return [];
