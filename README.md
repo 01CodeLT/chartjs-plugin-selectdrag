@@ -42,5 +42,3 @@ data: {
     datasets: []
 }
 ```
-
-*Please note: This package is yet to be fully reviewed and tested, furthermore changes need to be made for other charts and selection types...*
