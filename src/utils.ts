@@ -12,7 +12,7 @@ export function getOptions(chart) {
     }, chart?.config?.options?.plugins?.selectdrag);
 }
 
-export function highlightChartData(chart, selection: Selection = null) {
+export function setChartElementsColor(chart, selection: Selection = null) {
     // Get plugin options
     const pluginOptions = getOptions(chart);
 
@@ -49,6 +49,23 @@ export function highlightChartData(chart, selection: Selection = null) {
                 // Show selected/unselected
                 return backgroundColorCallback(value, index, dataset.backgroundColorDefault || colors.selected);
             }
+        });
+        return dataset;
+    });
+}
+
+export function clearChartElementsColor(chart) {
+    // Get plugin options
+    const pluginOptions = getOptions(chart);
+
+    // Color based on output
+    const colors = pluginOptions.colors;
+
+    // Set highlighted
+    chart.data.datasets = chart.data.datasets.map((dataset) => {
+        dataset.backgroundColor = chart.data.labels.map((value, index) => {
+            // Show default
+            return dataset.backgroundColorDefault || colors.selected;
         });
         return dataset;
     });

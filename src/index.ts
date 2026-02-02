@@ -1,22 +1,22 @@
 import { Selection } from "./selection";
-import { getOptions, highlightChartData } from "./utils";
+import { getOptions, setChartElementsColor, clearChartElementsColor } from "./utils";
 
 const states = new WeakMap();
 export default {
     id: "selectdrag",
 
     start: (chart, _args, options) => {
-        // Check if enabled
-        if(!chart?.config?.options?.plugins?.selectdrag?.enabled) {
-            return;
-        }
-
         // Get chart canvas
         const canvasElement = chart.canvas;
         canvasElement.style.cursor = 'crosshair';
 
         // Add listen events
         canvasElement.addEventListener("mousedown", (e) => {
+            // Check if enabled
+            if(!chart?.config?.options?.plugins?.selectdrag?.enabled) {
+                return;
+            }
+
             // Get state
             const selection: Selection = states.get(chart) || new Selection();
 
@@ -31,6 +31,11 @@ export default {
         });
 
         canvasElement.addEventListener('mousemove', (e) => {
+            // Check if enabled
+            if(!chart?.config?.options?.plugins?.selectdrag?.enabled) {
+                return;
+            }
+
             // Get existing selection
             const selection: Selection = states.get(chart);
             if(!selection) { return; }
@@ -53,6 +58,11 @@ export default {
         // Draw end
         let mouseUpTimeout;
         window.addEventListener("mouseup", (e) => {
+            // Check if enabled
+            if(!chart?.config?.options?.plugins?.selectdrag?.enabled) {
+                return;
+            }
+
             // Get existing selection
             const selection: Selection = states.get(chart);
             if(!selection) { return; }
@@ -102,6 +112,7 @@ export default {
     beforeUpdate: (chart, args, options) => {
         // Check if enabled
         if(!chart?.config?.options?.plugins?.selectdrag?.enabled) {
+            clearChartElementsColor(chart);
             return;
         }
 
@@ -110,10 +121,15 @@ export default {
         if(highlight !== undefined && highlight == false) { return; }
 
         // Check drawing status
-        highlightChartData(chart, states.get(chart) || null);
+        setChartElementsColor(chart, states.get(chart) || null);
     },
 
     afterDraw: (chart, args, options) => {
+        // Check if enabled
+        if(!chart?.config?.options?.plugins?.selectdrag?.enabled) {
+            return;
+        }
+
         // Check drawing status
         const selection: Selection = states.get(chart);
         if(!selection?.selection || (selection?.isSelecting === false && !selection.selection.end?.x)) {
