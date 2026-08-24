@@ -1,6 +1,7 @@
 import { Selection } from "./selection";
 import { getOptions, setChartElementsColor, clearChartElementsColor } from "./utils";
 
+let onWindowMouseup;
 const states = new WeakMap();
 export default {
     id: "selectdrag",
@@ -57,7 +58,7 @@ export default {
 
         // Draw end
         let mouseUpTimeout;
-        window.addEventListener("mouseup", (e) => {
+        onWindowMouseup = (e) => {
             // Check if enabled
             if(!chart?.config?.options?.plugins?.selectdrag?.enabled) {
                 return;
@@ -106,7 +107,8 @@ export default {
 
             states.set(chart, selection);
             chart.update();
-        });
+        }
+        window.addEventListener("mouseup", onWindowMouseup);
     },
 
     beforeUpdate: (chart, args, options) => {
@@ -167,5 +169,9 @@ export default {
         // Clear state
         states.delete(chart);
         chart.update();
+    },
+
+    beforeDestroy: (chart, args, options) => {
+        window.removeEventListener("mouseup", onWindowMouseup);
     }
 }
