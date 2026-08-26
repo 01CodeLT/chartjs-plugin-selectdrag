@@ -1,8 +1,12 @@
 import { Selection } from "./selection";
 import { getOptions, setChartElementsColor, clearChartElementsColor } from "./utils";
 
-let onWindowMouseup;
+// Store chart selections...
 const states = new WeakMap();
+
+// Track window events to remove when destroyed
+let onWindowMouseup;
+
 export default {
     id: "selectdrag",
 
